@@ -33,18 +33,18 @@ double GetVideoFileDuration(const std::wstring &filePath)
   IMFSourceReader *pReader = NULL;
   PROPVARIANT var;
   PropVariantInit(&var);
-  
-  std::wcout << L"A" << std::endl;
+
+  // std::wcout << L"Initializing..." << std::endl;
 
   // Checks if the file exists first (good practice!)
   if (!PathFileExistsW(filePath.c_str()))
   {
     // You can add a debug print here if you want
-    std::wcerr << L"File not found: " << filePath << std::endl;
+    std::wcerr << L"video_data_exporter | File not found: " << filePath << std::endl;
     return 0.0;
   }
 
-  std::wcout << L"B" << std::endl;
+  // std::wcout << L"Creating Byte Stream..." << std::endl;
   // Creates a byte stream from the file path. This is more robust.
   HRESULT hr = MFCreateFile(
       MF_ACCESSMODE_READ,
@@ -56,7 +56,7 @@ double GetVideoFileDuration(const std::wstring &filePath)
 
   if (FAILED(hr))
   {
-    std::wcerr << L"Failed to create Byte Stream from file path" << std::endl;
+    std::wcerr << L"video_data_exporter | Failed to create Byte Stream from file path" << std::endl;
     SafeRelease(&pByteStream);
     return 0.0;
   }
@@ -65,7 +65,7 @@ double GetVideoFileDuration(const std::wstring &filePath)
   hr = MFCreateSourceReaderFromByteStream(pByteStream, NULL, &pReader);
   if (FAILED(hr))
   {
-    std::wcerr << L"Failed to create Source Reader from byte stream" << std::endl;
+    std::wcerr << L"video_data_exporter | Failed to create Source Reader from byte stream" << std::endl;
     SafeRelease(&pByteStream);
     SafeRelease(&pReader);
     return 0.0;
@@ -79,7 +79,7 @@ double GetVideoFileDuration(const std::wstring &filePath)
   {
     ULONGLONG duration = var.uhVal.QuadPart;
     durationMs = static_cast<double>(duration) / 10000.0; // Converts from 100-nanosecond units to milliseconds
-    std::wcout << L"Successfully extracted duration: " << durationMs << std::endl;
+    // std::wcout << L"Successfully extracted duration: " << durationMs << std::endl;
   }
 
   // Cleanup all resources

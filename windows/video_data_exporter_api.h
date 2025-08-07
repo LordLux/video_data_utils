@@ -4,7 +4,8 @@
 #include <windows.h>
 #include <cstdint>
 
-struct FileMetadata {
+struct FileMetadata
+{
     int64_t creation_time_ms;
     int64_t access_time_ms;
     int64_t modified_time_ms;
@@ -12,15 +13,16 @@ struct FileMetadata {
 };
 
 #if defined(__cplusplus)
-extern "C" {
+extern "C"
+{
 #endif
 
 #define API_EXPORT __declspec(dllexport)
 
-API_EXPORT void initialize_exporter();
-API_EXPORT bool get_thumbnail(const wchar_t* video_path, const wchar_t* output_path, unsigned int size);
-API_EXPORT double get_video_duration(const wchar_t* video_path);
-API_EXPORT bool get_file_metadata(const wchar_t* file_path, struct FileMetadata* metadata);
+    API_EXPORT void initialize_exporter();
+    API_EXPORT bool get_thumbnail(const wchar_t *video_path, const wchar_t *output_path, unsigned int size);
+    API_EXPORT double get_video_duration(const wchar_t *video_path);
+    API_EXPORT bool get_file_metadata(const wchar_t *file_path, struct FileMetadata *metadata);
 
 #if defined(__cplusplus)
 }

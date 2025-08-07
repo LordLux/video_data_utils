@@ -5,6 +5,7 @@
     "*.y": "bison",
     "*.pl": "prolog",
     "*.dart": "dart",
-    "xstring": "cpp"
+    "xstring": "cpp",
+    "iostream": "cpp"
   }
 }

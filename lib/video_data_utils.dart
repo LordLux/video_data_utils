@@ -3,7 +3,6 @@
 import 'dart:ffi';
 import 'package:ffi/ffi.dart';
 
-// Mirrors the C++ struct
 final class _FileMetadataStruct extends Struct {
   @Int64()
   external int creationTimeMs;
@@ -47,7 +46,9 @@ class VideoDataUtils {
         
     initializeExporter();
   }
-
+  
+  /// Extracts a thumbnail from the video at [videoPath] and saves it to [outputPath].
+  /// The [size] parameter specifies the size of the thumbnail in pixels.
   Future<bool> extractCachedThumbnail({
     required String videoPath,
     required String outputPath,
@@ -59,6 +60,7 @@ class VideoDataUtils {
       try {
         final success = getThumbnail(videoPathC, outputPathC, size);
         if (!success) throw Exception('Native call to get_thumbnail failed.');
+        
         return true;
       } finally {
         malloc.free(videoPathC);
@@ -66,24 +68,29 @@ class VideoDataUtils {
       }
     });
   }
-
+  
+  /// Retrieves the duration of the video file at [videoPath].
+  /// Returns the duration in milliseconds.
   Future<double> getFileDuration({required String videoPath}) async {
     return await Future(() {
       final videoPathC = videoPath.toNativeUtf16();
       try {
         final duration = getVideoDuration(videoPathC);
-        print('Video duration: $duration seconds');
         return duration;
       } finally {
         malloc.free(videoPathC);
       }
     });
   }
-
+  
+  /// Retrieves metadata for a file at the given path.
+  /// Returns a map containing creation time, access time, modified time, and file size.
+  /// 
+  /// The times are in milliseconds since the Unix epoch.
+  /// The size is in bytes.
   Future<Map<String, int>> getFileMetadataMap({required String filePath}) async {
     return await Future(() {
-      // === THE CORRECTION IS HERE ===
-      // Allocate memory FOR THE STRUCT ITSELF.
+      // Allocate memory for the struct.
       // This returns a Pointer<_FileMetadataStruct> that points to valid memory.
       final metadataStructPtr = calloc<_FileMetadataStruct>();
       

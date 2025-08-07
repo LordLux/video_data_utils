@@ -5,8 +5,8 @@
 #include <wtypes.h>
 
 bool GetExplorerThumbnail(
-    const std::wstring& videoPath,
-    const std::wstring& outputPng,
+    const std::wstring &videoPath,
+    const std::wstring &outputPng,
     UINT requestedSize);
 
 #endif // THUMBNAIL_EXPORTER_H_
