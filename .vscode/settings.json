@@ -1,0 +1,10 @@
+{
+  "dart.flutterSdkPath": ".fvm/versions/3.32.8",
+  "files.associations": {
+    "*.l": "jflex",
+    "*.y": "bison",
+    "*.pl": "prolog",
+    "*.dart": "dart",
+    "xstring": "cpp"
+  }
+}
