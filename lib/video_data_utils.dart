@@ -62,6 +62,8 @@ class VideoDataUtils {
         if (!success) throw Exception('Native call to get_thumbnail failed.');
         
         return true;
+      } catch (e) {
+        print('video_data_utils | Error while extracting cached thumbnail: $e')
       } finally {
         malloc.free(videoPathC);
         malloc.free(outputPathC);
@@ -77,6 +79,8 @@ class VideoDataUtils {
       try {
         final duration = getVideoDuration(videoPathC);
         return duration;
+      } catch (e) {
+        print('video_data_utils | Error while extracting file duration: $e');
       } finally {
         malloc.free(videoPathC);
       }
@@ -114,6 +118,8 @@ class VideoDataUtils {
           'accessTime': metadata.accessTimeMs,
           'fileSize': metadata.fileSizeBytes,
         };
+      } catch (e) {
+        print('video_data_utils | Error while extracting file metadata: $e');
       } finally {
         // Always free the memory you allocate.
         calloc.free(metadataStructPtr);
