@@ -1,6 +1,44 @@
+/*
+ * xxHash - Extremely Fast Hash algorithm
+ * Header File
+ * Copyright (C) 2012-2023 Yann Collet
+ *
+ * BSD 2-Clause License (https://www.opensource.org/licenses/bsd-license.php)
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *    * Redistributions of source code must retain the above copyright
+ *      notice, this list of conditions and the following disclaimer.
+ *    * Redistributions in binary form must reproduce the above
+ *      copyright notice, this list of conditions and the following disclaimer
+ *      in the documentation and/or other materials provided with the
+ *      distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * You can contact the author at:
+ *   - xxHash homepage: https://www.xxhash.com
+ *   - xxHash source repository: https://github.com/Cyan4973/xxHash
+ */
+
+#define XXH_IMPLEMENTATION
+
 #include "video_data_exporter_api.h"
 #include "thumbnail_exporter.h"
 #include "video_duration.h"
+#include "xxhash.h"
 #include <memory>
 #include <gdiplus.h>
 #include <mfapi.h>
@@ -61,14 +99,14 @@ API_EXPORT bool get_file_metadata(const wchar_t *file_path, struct FileMetadata 
         // Ensure file path is not null or empty
         if (file_path == nullptr || wcslen(file_path) == 0)
         {
-            std::cerr << L"video_data_exporter | Invalid file path." << std::endl;
+            std::cerr << L"video_data_exporter | Invalid file path for file: '" << file_path << "'" << std::endl;
             return false;
         }
 
         // Ensure metadata pointer is not null
         if (metadata == nullptr)
         {
-            std::cerr << L"video_data_exporter | Metadata pointer is null." << std::endl;
+            std::cerr << L"video_data_exporter | Metadata pointer is null for file: " << file_path << std::endl;
             return false;
         }
 
@@ -102,16 +140,52 @@ API_EXPORT bool get_file_metadata(const wchar_t *file_path, struct FileMetadata 
 
             return true;
         }
-        
+
         std::cerr << "video_data_exporter | Failed to retrieve file attributes for: " << file_path << std::endl;
         return false;
     }
     catch (const std::exception &e)
     {
-        std::cerr << "video_data_exporter | Exception occurred: " << e.what() << std::endl;
+        std::cerr << "video_data_exporter | Exception occurred when getting file metadata for file: " << file_path << ": " << e.what() << std::endl;
         return false;
     }
 
-    std::cerr << "video_data_exporter | Failed to retrieve file attributes: Unknown error." << std::endl;
+    std::cerr << "video_data_exporter | Failed to retrieve file attributes for file: " << file_path << ": Unknown error." << std::endl;
     return false;
+}
+
+API_EXPORT uint64_t get_xxhash_checksum(const wchar_t *file_path, size_t buffer_size)
+{
+    const size_t BUFFER_SIZE = buffer_size > 0 ? buffer_size : 8 * 1024 * 1024;
+    void *const buffer = malloc(BUFFER_SIZE);
+    if (!buffer)
+    {
+        std::cerr << "video_data_exporter | Memory allocation failed for checksum buffer for file: " << file_path << std::endl;
+        return 0;
+    }
+
+    FILE *const file = _wfopen(file_path, L"rb");
+    if (file == NULL)
+    {
+        free(buffer);
+        std::cerr << "video_data_exporter | Failed to open file: " << file_path << std::endl;
+        return 0;
+    }
+
+    XXH3_state_t *const state = XXH3_createState();
+    XXH3_64bits_reset(state);
+
+    size_t bytes_read;
+    while ((bytes_read = fread(buffer, 1, BUFFER_SIZE, file)) > 0)
+    {
+        XXH3_64bits_update(state, buffer, bytes_read);
+    }
+
+    XXH64_hash_t const hash = XXH3_64bits_digest(state);
+
+    fclose(file);
+    XXH3_freeState(state);
+    free(buffer);
+
+    return hash;
 }

@@ -1,6 +1,7 @@
 // ignore_for_file: library_private_types_in_public_api
 
 import 'dart:ffi';
+import 'dart:io';
 import 'package:ffi/ffi.dart';
 
 final class _FileMetadataStruct extends Struct {
@@ -19,12 +20,14 @@ typedef _InitializeExporterNative = Void Function();
 typedef _GetThumbnailNative = Bool Function(Pointer<Utf16> videoPath, Pointer<Utf16> outputPath, Uint32 size);
 typedef _GetVideoDurationNative = Double Function(Pointer<Utf16> videoPath);
 typedef _GetFileMetadataNative = Bool Function(Pointer<Utf16> filePath, Pointer<_FileMetadataStruct> metadata);
+typedef _GetXxhashChecksumNative = Uint64 Function(Pointer<Utf16> filePath, IntPtr bufferSize);
 
 // Dart function signatures
 typedef _InitializeExporterDart = void Function();
 typedef _GetThumbnailDart = bool Function(Pointer<Utf16> videoPath, Pointer<Utf16> outputPath, int size);
 typedef _GetVideoDurationDart = double Function(Pointer<Utf16> videoPath);
 typedef _GetFileMetadataDart = bool Function(Pointer<Utf16> filePath, Pointer<_FileMetadataStruct> metadata);
+typedef _GetXxhashChecksumDart = int Function(Pointer<Utf16> filePath, int bufferSize);
 
 class VideoDataUtils {
   static final VideoDataUtils _instance = VideoDataUtils._internal();
@@ -35,6 +38,7 @@ class VideoDataUtils {
   late final _GetThumbnailDart getThumbnail;
   late final _GetVideoDurationDart getVideoDuration;
   late final _GetFileMetadataDart getFileMetadata;
+  late final _GetXxhashChecksumDart getXxhashChecksum;
 
   VideoDataUtils._internal() {
     _dylib = DynamicLibrary.open('video_data_utils.dll');
@@ -43,34 +47,32 @@ class VideoDataUtils {
     getThumbnail = _dylib.lookup<NativeFunction<_GetThumbnailNative>>('get_thumbnail').asFunction();
     getVideoDuration = _dylib.lookup<NativeFunction<_GetVideoDurationNative>>('get_video_duration').asFunction();
     getFileMetadata = _dylib.lookup<NativeFunction<_GetFileMetadataNative>>('get_file_metadata').asFunction();
-        
+    getXxhashChecksum = _dylib.lookup<NativeFunction<_GetXxhashChecksumNative>>('get_xxhash_checksum').asFunction();
+
     initializeExporter();
   }
-  
+
   /// Extracts a thumbnail from the video at [videoPath] and saves it to [outputPath].
   /// The [size] parameter specifies the size of the thumbnail in pixels.
-  Future<bool> extractCachedThumbnail({
-    required String videoPath,
-    required String outputPath,
-    required int size,
-  }) async {
+  Future<bool> extractCachedThumbnail({required String videoPath, required String outputPath, required int size}) async {
     return await Future(() {
       final videoPathC = videoPath.toNativeUtf16();
       final outputPathC = outputPath.toNativeUtf16();
       try {
         final success = getThumbnail(videoPathC, outputPathC, size);
         if (!success) throw Exception('Native call to get_thumbnail failed.');
-        
+
         return true;
       } catch (e) {
-        print('video_data_utils | Error while extracting cached thumbnail: $e')
+        print('video_data_utils | Error while extracting cached thumbnail: $e');
+        throw Exception('Error while extracting cached thumbnail: $e');
       } finally {
         malloc.free(videoPathC);
         malloc.free(outputPathC);
       }
     });
   }
-  
+
   /// Retrieves the duration of the video file at [videoPath].
   /// Returns the duration in milliseconds.
   Future<double> getFileDuration({required String videoPath}) async {
@@ -81,15 +83,16 @@ class VideoDataUtils {
         return duration;
       } catch (e) {
         print('video_data_utils | Error while extracting file duration: $e');
+        throw Exception('Error while extracting file duration: $e');
       } finally {
         malloc.free(videoPathC);
       }
     });
   }
-  
+
   /// Retrieves metadata for a file at the given path.
   /// Returns a map containing creation time, access time, modified time, and file size.
-  /// 
+  ///
   /// The times are in milliseconds since the Unix epoch.
   /// The size is in bytes.
   Future<Map<String, int>> getFileMetadataMap({required String filePath}) async {
@@ -97,7 +100,7 @@ class VideoDataUtils {
       // Allocate memory for the struct.
       // This returns a Pointer<_FileMetadataStruct> that points to valid memory.
       final metadataStructPtr = calloc<_FileMetadataStruct>();
-      
+
       final filePathC = filePath.toNativeUtf16();
       try {
         // Pass the valid pointer directly to the C++ function.
@@ -109,20 +112,40 @@ class VideoDataUtils {
           malloc.free(filePathC);
           throw Exception('Failed to get file metadata (native call returned false).');
         }
-        
+
         // To read the data, we now just use .ref
         final metadata = metadataStructPtr.ref;
-        return {
-          'creationTime': metadata.creationTimeMs,
-          'modifiedTime': metadata.modifiedTimeMs,
-          'accessTime': metadata.accessTimeMs,
-          'fileSize': metadata.fileSizeBytes,
-        };
+        return {'creationTime': metadata.creationTimeMs, 'modifiedTime': metadata.modifiedTimeMs, 'accessTime': metadata.accessTimeMs, 'fileSize': metadata.fileSizeBytes};
       } catch (e) {
         print('video_data_utils | Error while extracting file metadata: $e');
+        throw Exception('Error while extracting file metadata: $e');
       } finally {
         // Always free the memory you allocate.
         calloc.free(metadataStructPtr);
+        malloc.free(filePathC);
+      }
+    });
+  }
+
+  /// Calculates the 64-bit xxHash of the file at [filePath].
+  /// Returns the hash as an integer. Returns 0 on failure.
+  /// 
+  /// [bufferSize] is an optional parameter that specifies the buffer size in bytes for reading the file.
+  /// Default is 8MB (8 * 1024 * 1024 bytes) if not specified.
+  Future<int> calculateFileHash({required String filePath, int bufferSize = 0}) async {
+    return await Future(() {
+      final filePathC = filePath.toNativeUtf16();
+      try {
+        // Check if the file exists after calculating the hash to know if 0 is truly an error or just a super rare hash value.
+        final hash = getXxhashChecksum(filePathC, bufferSize);
+        
+        if (hash == 0 && !File(filePath).existsSync()) throw Exception('File does not exist: $filePath');
+
+        return hash;
+      } catch (e) {
+        print('video_data_utils | Error while calculating xxHash: $e');
+        throw Exception('Error while calculating xxHash: $e');
+      } finally {
         malloc.free(filePathC);
       }
     });

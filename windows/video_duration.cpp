@@ -36,7 +36,7 @@ double GetVideoFileDuration(const std::wstring &filePath)
 
   // std::wcout << L"Initializing..." << std::endl;
 
-  // Checks if the file exists first (good practice!)
+  // Checks if the file exists first
   if (!PathFileExistsW(filePath.c_str()))
   {
     // You can add a debug print here if you want
@@ -56,7 +56,7 @@ double GetVideoFileDuration(const std::wstring &filePath)
 
   if (FAILED(hr))
   {
-    std::wcerr << L"video_data_exporter | Failed to create Byte Stream from file path" << std::endl;
+    std::wcerr << L"video_data_exporter | Failed to create Byte Stream from file path: " << filePath << std::endl;
     SafeRelease(&pByteStream);
     return 0.0;
   }
@@ -65,7 +65,7 @@ double GetVideoFileDuration(const std::wstring &filePath)
   hr = MFCreateSourceReaderFromByteStream(pByteStream, NULL, &pReader);
   if (FAILED(hr))
   {
-    std::wcerr << L"video_data_exporter | Failed to create Source Reader from byte stream" << std::endl;
+    std::wcerr << L"video_data_exporter | Failed to create Source Reader from byte stream for file: " << filePath << std::endl;
     SafeRelease(&pByteStream);
     SafeRelease(&pReader);
     return 0.0;

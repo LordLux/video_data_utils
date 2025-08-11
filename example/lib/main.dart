@@ -11,7 +11,12 @@ import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_data_utils/video_data_utils.dart';
 
+import 'benchmark.dart' as benchmark;
 import 'classes.dart';
+import 'isolate.dart';
+import 'logging.dart';
+import 'metadata.dart' show Metadata;
+import 'path.dart';
 
 Future<bool> generateThumbnailInIsolate(_ThumbnailParams params) async {
   // Each isolate must initialize its own native communication.
@@ -46,8 +51,11 @@ class _MetadataParams {
   _MetadataParams(this.filePath, this.rootToken);
 }
 
+late RootIsolateToken rootToken;
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  rootToken = RootIsolateToken.instance!;
 
   runApp(MaterialApp(home: const MyApp(), theme: ThemeData.dark(), darkTheme: ThemeData.dark()));
 }
@@ -66,7 +74,7 @@ class _MyAppState extends State<MyApp> {
   Metadata? _metadata;
   MkvMetadata? _mkvMetadata;
   bool _isProcessing = false;
-  bool _mediainfoAvailable = false;
+  bool _benchmarking = false;
   final _videoDataUtils = VideoDataUtils();
 
   @override
@@ -80,24 +88,6 @@ class _MyAppState extends State<MyApp> {
   }
 
   String get extension => clean(_controller.text.split(".").last.toLowerCase());
-
-  Future<void> _extractMetadata(String filePath) async {
-    try {
-      final rootToken = RootIsolateToken.instance!;
-      // The return type from compute is now correctly Map<String, dynamic>
-      final metadataMap = await compute(extractMetadataInIsolate, _MetadataParams(filePath, rootToken));
-
-      setState(() {
-        _metadata = Metadata.fromJson(metadataMap);
-        _status = '$_status\nMetadata extracted successfully';
-      });
-    } catch (e, st) {
-      print('Error extracting metadata: $e\n$st');
-      setState(() {
-        _status = '$_status\nMetadata error: $e\n$st';
-      });
-    }
-  }
 
   Future<void> _getMkvMetadataWithMediaInfo(String filepath) async {
     filepath = clean(filepath);
@@ -299,8 +289,16 @@ class _MyAppState extends State<MyApp> {
 
     try {
       await _generateThumbnail(filePath);
-      await _extractMetadata(filePath);
+
+      Map<PathString, Metadata> scanResult = {};
+      logTrace('3 | Processing $file in a background isolate...');
+
+      scanResult = await IsolateManager().runInIsolate(processFilesIsolate, [PathString(file.path)]);
+
+      logTrace('3 | Isolate processing complete. Found metadata for ${scanResult.length} files.');
+
       setState(() {
+        _metadata = Metadata.fromJson(scanResult.values.first.toJson());
         _isProcessing = false;
       });
     } catch (e) {
@@ -356,6 +354,30 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
+  // Add this method to _MyAppState class
+  Future<void> _runBenchmark() async {
+    setState(() {
+      _status = 'Running benchmark...';
+      _isProcessing = true;
+    });
+
+    try {
+      final benchmar = benchmark.Benchmark(directoryPath: 'M:\\Videos\\Series', recursive: true, rootToken: rootToken);
+      final results = await benchmar.run();
+      setState(() {
+        _status = results;
+      });
+    } catch (e) {
+      setState(() {
+        _status = 'Benchmark error: $e';
+      });
+    } finally {
+      setState(() {
+        _isProcessing = false;
+      });
+    }
+  }
+
   bool get isCurrentMkv {
     return _mkvMetadata != null && _controller.text.split(".").last.toLowerCase().replaceAll('"', "") == 'mkv';
   }
@@ -365,7 +387,10 @@ class _MyAppState extends State<MyApp> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Video Data Extractor'),
-        actions: [Switch(value: _mediainfoAvailable, onChanged: (value) => setState(() => _mediainfoAvailable = value))],
+        actions: [
+          Switch(value: _benchmarking, onChanged: (value) => setState(() => _benchmarking = value)),
+          ElevatedButton(onPressed: _isProcessing ? null : _runBenchmark, child: const Text('Run Benchmark')),
+        ],
       ),
       body: Row(
         crossAxisAlignment: CrossAxisAlignment.start,

@@ -18,7 +18,10 @@ list(APPEND DLL_SOURCES
 )
 
 # This creates video_data_utils.dll
-add_library(video_data_utils SHARED ${DLL_SOURCES})
+add_library(video_data_utils SHARED ${DLL_SOURCES}
+        xxhash.c)
+
+target_compile_definitions(video_data_utils PRIVATE XXH_STATIC_LINKING_ONLY)
 
 # Link against required Windows libraries
 target_link_libraries(video_data_utils PRIVATE
