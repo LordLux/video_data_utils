@@ -30,8 +30,13 @@ target_link_libraries(video_data_utils PRIVATE
   mfuuid.lib
 )
 
-# Install the DLL to the Flutter app's output directory
-# This ensures the DLL is available when the Flutter app runs
+# Set the output directory for the DLL
 set_target_properties(video_data_utils PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+)
+
+# DLL target location
+set(video_data_utils_bundled_libraries
+  "$<TARGET_FILE:video_data_utils>"
+  PARENT_SCOPE
 )
