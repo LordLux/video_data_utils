@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.14)
 
 # Use the same name as our plugin folder for consistency
-project(video_data_utils LANGUAGES CXX)
+project(video_data_utils LANGUAGES CXX C)
 
 cmake_policy(VERSION 3.14...3.25)
 if(POLICY CMP0167)
@@ -18,10 +18,7 @@ list(APPEND DLL_SOURCES
 )
 
 # This creates video_data_utils.dll
-add_library(video_data_utils SHARED ${DLL_SOURCES}
-        xxhash.c)
-
-target_compile_definitions(video_data_utils PRIVATE XXH_STATIC_LINKING_ONLY)
+add_library(video_data_utils SHARED ${DLL_SOURCES})
 
 # Link against required Windows libraries
 target_link_libraries(video_data_utils PRIVATE
@@ -37,10 +34,4 @@ target_link_libraries(video_data_utils PRIVATE
 # This ensures the DLL is available when the Flutter app runs
 set_target_properties(video_data_utils PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
-)
-
-# Install to the Flutter build output directory for each configuration
-install(TARGETS video_data_utils
-  RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}"
-  COMPONENT Runtime
 )
