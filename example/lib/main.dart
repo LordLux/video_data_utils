@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -69,6 +68,7 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   final TextEditingController _controller = TextEditingController();
+  final TextEditingController _shortcutController = TextEditingController();
   String _status = '';
   String? _thumbnailPath;
   Metadata? _metadata;
@@ -76,11 +76,17 @@ class _MyAppState extends State<MyApp> {
   bool _isProcessing = false;
   bool _benchmarking = false;
   final _videoDataUtils = VideoDataUtils();
+  
+  // Shortcut resolution state
+  String _resolvedShortcutPath = '';
+  String _shortcutError = '';
+  bool _isResolvingShortcut = false;
 
   @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    // Set a default shortcut path suggestion
+    _shortcutController.text = r'M:\Videos\SeriesTest\The Fragrant Flower Blooms with Dignity - Shortcut.lnk';
   }
 
   String clean(String path) {
@@ -88,6 +94,42 @@ class _MyAppState extends State<MyApp> {
   }
 
   String get extension => clean(_controller.text.split(".").last.toLowerCase());
+
+  Future<void> _resolveShortcut() async {
+    final shortcutPath = _shortcutController.text.trim();
+    
+    if (shortcutPath.isEmpty) {
+      setState(() {
+        _shortcutError = 'Please enter a shortcut path';
+        _resolvedShortcutPath = '';
+      });
+      return;
+    }
+
+    setState(() {
+      _isResolvingShortcut = true;
+      _shortcutError = '';
+      _resolvedShortcutPath = '';
+    });
+
+    try {
+      final targetPath = await _videoDataUtils.resolveShortcutPath(
+        shortcutPath: shortcutPath,
+      );
+      
+      setState(() {
+        _resolvedShortcutPath = targetPath;
+      });
+    } catch (e) {
+      setState(() {
+        _shortcutError = e.toString();
+      });
+    } finally {
+      setState(() {
+        _isResolvingShortcut = false;
+      });
+    }
+  }
 
   Future<void> _getMkvMetadataWithMediaInfo(String filepath) async {
     filepath = clean(filepath);
@@ -433,6 +475,86 @@ class _MyAppState extends State<MyApp> {
                       ],
                     ),
                   ),
+                  const SizedBox(height: 32),
+                  const Divider(),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Windows Shortcut Resolver',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _shortcutController,
+                    decoration: const InputDecoration(
+                      labelText: 'Enter shortcut file path (.lnk)',
+                      hintText: 'e.g., C:\\Users\\Public\\Desktop\\MyFile.lnk',
+                      border: OutlineInputBorder(),
+                    ),
+                    onSubmitted: (_) => _resolveShortcut(),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      ElevatedButton(
+                        onPressed: _isResolvingShortcut ? null : _resolveShortcut,
+                        child: const Text('Resolve Shortcut'),
+                      ),
+                      if (_isResolvingShortcut) 
+                        const Padding(
+                          padding: EdgeInsets.only(left: 16.0),
+                          child: CircularProgressIndicator(),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  if (_resolvedShortcutPath.isNotEmpty) ...[
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        border: Border.all(color: Colors.green),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Resolved Target Path:',
+                            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
+                          ),
+                          const SizedBox(height: 8),
+                          SelectableText(
+                            _resolvedShortcutPath,
+                            style: const TextStyle(fontFamily: 'monospace'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  if (_shortcutError.isNotEmpty) ...[
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade800,
+                        border: Border.all(color: Colors.red.shade50),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Error:',
+                            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red.shade50),
+                          ),
+                          const SizedBox(height: 8),
+                          SelectableText(
+                            _shortcutError,
+                            style: TextStyle(color: Colors.red.shade50),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,

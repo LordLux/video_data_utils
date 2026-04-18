@@ -25,7 +25,7 @@ bool GetExplorerThumbnail(
         HRESULT hr = SHCreateItemFromParsingName(videoPath.c_str(), nullptr, IID_PPV_ARGS(&shellItem));
         if (FAILED(hr))
         {
-            std::cerr << "thumbnail_exporter | Failed to create shell item: " << std::hex << hr << std::endl;
+            std::wcerr << L"thumbnail_exporter | Failed to create shell item for paths " << videoPath << L": " << std::hex << hr << std::endl;
             return false;
         }
         
@@ -34,7 +34,7 @@ bool GetExplorerThumbnail(
         hr = shellItem->BindToHandler(nullptr, BHID_ThumbnailHandler, IID_PPV_ARGS(&thumbProvider));
         if (FAILED(hr))
         {
-            std::cerr << "thumbnail_exporter | Failed to bind to thumbnail handler: " << std::hex << hr << std::endl;
+            std::wcerr << L"thumbnail_exporter | Failed to bind to thumbnail handler: " << std::hex << hr << std::endl;
             return false;
         }
 
@@ -44,7 +44,7 @@ bool GetExplorerThumbnail(
         hr = thumbProvider->GetThumbnail(requestedSize, &hBitmap, &alphaType);
         if (FAILED(hr))
         {
-            std::cerr << "thumbnail_exporter | Failed to get thumbnail: " << std::hex << hr << std::endl;
+            std::wcerr << L"thumbnail_exporter | Failed to get thumbnail: " << std::hex << hr << std::endl;
             return false;
         }
         

@@ -23,6 +23,7 @@ extern "C"
     API_EXPORT bool get_thumbnail(const wchar_t *video_path, const wchar_t *output_path, unsigned int size);
     API_EXPORT double get_video_duration(const wchar_t *video_path);
     API_EXPORT bool get_file_metadata(const wchar_t *file_path, struct FileMetadata *metadata);
+    API_EXPORT bool resolve_shortcut(const wchar_t *shortcut_path, wchar_t *target_path, int buffer_size);
 
 #if defined(__cplusplus)
 }
