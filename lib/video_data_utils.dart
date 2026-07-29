@@ -149,12 +149,11 @@ class VideoDataUtils {
         // Pass the valid pointer directly to the C++ function.
         final success = getFileMetadata(filePathC, metadataStructPtr);
 
-        if (!success) {
-          // Free memory before throwing exception
-          calloc.free(metadataStructPtr);
-          malloc.free(filePathC);
-          throw Exception('Failed to get file metadata (native call returned false).');
-        }
+        // NOTE: do NOT free the pointers here — the `finally` block below frees them.
+        // Freeing them in both places caused a double free (heap corruption,
+        // 0xc0000374 in ntdll) whenever a file's attributes could not be read,
+        // crashing the host app during library scans
+        if (!success) throw Exception('Failed to get file metadata (native call returned false).');
 
         // To read the data, we now just use .ref
         final metadata = metadataStructPtr.ref;
